@@ -79,7 +79,7 @@ def main(args):
     logger=wandb_logger
     )
 
-    if trainer.local_rank == 0:  # 只有rank 0的进程才会打印
+    if trainer.local_rank == 0:  # Only rank 0 process prints
         print(json.dumps(vars(args), indent=4))
         print("attribute considered")
         for index in indexs:

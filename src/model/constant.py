@@ -1,15 +1,15 @@
 #conflict list
 CONFLICTS_DICT = {
-    # 同组内“至多一个为真”
+    # At most one can be true within each group.
     "mutual_exclusion_groups": [
-        # 头发颜色四选一
+        # Hair color: choose one out of four.
         [(8,  "Black_Hair"), (9,  "Blond_Hair"), (11, "Brown_Hair"), (17, "Gray_Hair")],
-        # 发型形态二选一
+        # Hair style: choose one out of two.
         [(32, "Straight_Hair"), (33, "Wavy_Hair")],
     ],
-    # 成对互斥（不可同时为真）
+    # Pairwise conflicts (cannot be true at the same time).
     "pairs": [
-        # 秃头 vs 任意“有头发”特征
+        # Bald vs any "has hair" attributes.
         [(4,  "Bald"), (5,  "Bangs")],
         [(4,  "Bald"), (8,  "Black_Hair")],
         [(4,  "Bald"), (9,  "Blond_Hair")],
@@ -17,7 +17,7 @@ CONFLICTS_DICT = {
         [(4,  "Bald"), (17, "Gray_Hair")],
         [(4,  "Bald"), (32, "Straight_Hair")],
         [(4,  "Bald"), (33, "Wavy_Hair")],
-        # 无胡须 vs 各类胡须
+        # No_Beard vs facial-hair attributes.
         [(24, "No_Beard"), (0,  "5_o_Clock_Shadow")],
         [(24, "No_Beard"), (22, "Mustache")],
         [(24, "No_Beard"), (16, "Goatee")],
@@ -29,7 +29,7 @@ CONFLICTS_DICT = {
 }
 
 CONFLICTS_LIST = [
-    # 发色互斥（四选一，成对展开）
+    # Hair color conflicts (one-of-four, expanded pairwise).
     [(8,  "Black_Hair"), (9,  "Blond_Hair")],
     [(8,  "Black_Hair"), (11, "Brown_Hair")],
     #[(8,  "Black_Hair"), (17, "Gray_Hair")],
@@ -37,52 +37,52 @@ CONFLICTS_LIST = [
     #[(9,  "Blond_Hair"), (17, "Gray_Hair")],
     #[(11, "Brown_Hair"), (17, "Gray_Hair")],
 
-    # 发型互斥（二选一）
+    # Hair style conflicts (one-of-two).
     [(32, "Straight_Hair"), (33, "Wavy_Hair")]
 ]
 
 # attribute list
 ATTRIBUTE_LIST = [
-    ["5_o_Clock_Shadow", "五点钟胡渣"],
-    ["Arched_Eyebrows", "弓形眉"],
-    ["Attractive", "有吸引力"],
-    ["Bags_Under_Eyes", "眼袋"],
-    ["Bald", "秃头"],
-    ["Bangs", "刘海"],
-    ["Big_Lips", "厚嘴唇"],
-    ["Big_Nose", "大鼻子"],
-    ["Black_Hair", "黑发"],
-    ["Blond_Hair", "金发"],
-    ["Blurry", "模糊"],
-    ["Brown_Hair", "棕发"],
-    ["Bushy_Eyebrows", "浓眉"],
-    ["Chubby", "微胖"],
-    ["Double_Chin", "双下巴"],
-    ["Eyeglasses", "戴眼镜"],
-    ["Goatee", "山羊胡"],
-    ["Gray_Hair", "灰白发"],
-    ["Heavy_Makeup", "浓妆"],
-    ["High_Cheekbones", "高颧骨"],
-    ["Male", "男性"],
-    ["Mouth_Slightly_Open", "嘴微张"],
-    ["Mustache", "小胡子（上唇胡）"],
-    ["Narrow_Eyes", "细长眼"],
-    ["No_Beard", "无胡须"],
-    ["Oval_Face", "椭圆脸"],
-    ["Pale_Skin", "皮肤苍白"],
-    ["Pointy_Nose", "尖鼻子"],
-    ["Receding_Hairline", "发际线后移"],
-    ["Rosy_Cheeks", "红润脸颊"],
-    ["Sideburns", "鬓角"],
-    ["Smiling", "微笑"],
-    ["Straight_Hair", "直发"],
-    ["Wavy_Hair", "波浪发"],
-    ["Wearing_Earrings", "戴耳环"],
-    ["Wearing_Hat", "戴帽子"],
-    ["Wearing_Lipstick", "涂口红"],
-    ["Wearing_Necklace", "戴项链"],
-    ["Wearing_Necktie", "系领带"],
-    ["Young", "年轻"],
+    ["5_o_Clock_Shadow", "Five o'clock shadow"],
+    ["Arched_Eyebrows", "Arched eyebrows"],
+    ["Attractive", "Attractive"],
+    ["Bags_Under_Eyes", "Bags under eyes"],
+    ["Bald", "Bald"],
+    ["Bangs", "Bangs"],
+    ["Big_Lips", "Big lips"],
+    ["Big_Nose", "Big nose"],
+    ["Black_Hair", "Black hair"],
+    ["Blond_Hair", "Blond hair"],
+    ["Blurry", "Blurry"],
+    ["Brown_Hair", "Brown hair"],
+    ["Bushy_Eyebrows", "Bushy eyebrows"],
+    ["Chubby", "Chubby"],
+    ["Double_Chin", "Double chin"],
+    ["Eyeglasses", "Eyeglasses"],
+    ["Goatee", "Goatee"],
+    ["Gray_Hair", "Gray hair"],
+    ["Heavy_Makeup", "Heavy makeup"],
+    ["High_Cheekbones", "High cheekbones"],
+    ["Male", "Male"],
+    ["Mouth_Slightly_Open", "Mouth slightly open"],
+    ["Mustache", "Mustache"],
+    ["Narrow_Eyes", "Narrow eyes"],
+    ["No_Beard", "No beard"],
+    ["Oval_Face", "Oval face"],
+    ["Pale_Skin", "Pale skin"],
+    ["Pointy_Nose", "Pointy nose"],
+    ["Receding_Hairline", "Receding hairline"],
+    ["Rosy_Cheeks", "Rosy cheeks"],
+    ["Sideburns", "Sideburns"],
+    ["Smiling", "Smiling"],
+    ["Straight_Hair", "Straight hair"],
+    ["Wavy_Hair", "Wavy hair"],
+    ["Wearing_Earrings", "Wearing earrings"],
+    ["Wearing_Hat", "Wearing hat"],
+    ["Wearing_Lipstick", "Wearing lipstick"],
+    ["Wearing_Necklace", "Wearing necklace"],
+    ["Wearing_Necktie", "Wearing necktie"],
+    ["Young", "Young"],
 ]
 
 ATTRIBUTE_NAME_LIST = [
@@ -127,4 +127,3 @@ ATTRIBUTE_NAME_LIST = [
     "Young",
     "Blond_Hair"
 ]
-

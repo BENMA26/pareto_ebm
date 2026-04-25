@@ -17,7 +17,13 @@
 
 import os
 import sys
-sys.path.append("/work/home/maben/project/blue_whale_lab/projects/PARETO_EBM/experiments/final_experiments/src")
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.append(str(SRC_DIR))
 
 import os
 import argparse
@@ -55,9 +61,15 @@ import argparse
 import json
 import os
 
-# 你给定的两个文件路径（固定写死）
-ATTR_NAMES_JSON = "/work/home/maben/project/blue_whale_lab/projects/PARETO_EBM/experiments/final_experiments/experiments/eval_celeba_compositional/ckpts/attr_names.json"
-THRESH_JSON     = "/work/home/maben/project/blue_whale_lab/projects/PARETO_EBM/experiments/final_experiments/experiments/eval_celeba_compositional/ckpts/classifier_threshold.json"
+# Default metadata paths (can be overridden via environment variables).
+ATTR_NAMES_JSON = os.environ.get(
+    "PARETO_EBM_ATTR_NAMES_JSON",
+    str(PROJECT_ROOT / "artifacts" / "attr_names.json"),
+)
+THRESH_JSON = os.environ.get(
+    "PARETO_EBM_THRESHOLD_JSON",
+    str(PROJECT_ROOT / "artifacts" / "classifier_threshold.json"),
+)
 # --------- helpers ---------
 import os
 import numpy as np
@@ -66,34 +78,33 @@ from PIL import Image
 
 def save_sample_list_as_jpg(sample_list, save_dir, start_idx):
     """
-    将 [0,1] 范围的图像列表（支持 torch.Tensor 或 np.ndarray）按序保存为 JPG。
-    图像可以是 (H, W), (H, W, 1), (H, W, 3) 格式。
+    Save a [0,1]-range image list (torch.Tensor or np.ndarray) as JPG files.
+    Supported shapes: (H, W), (H, W, 1), (H, W, 3).
     """
     os.makedirs(save_dir, exist_ok=True)
     
     for idx, img in enumerate(sample_list):
-        # Step 1: 转为 NumPy 数组
+        # Step 1: convert to NumPy array
         if isinstance(img, torch.Tensor):
             img = img.detach().cpu().numpy()
         elif not isinstance(img, np.ndarray):
             raise TypeError(f"Unsupported image type: {type(img)}")
         
-        # Step 2: 处理可能的单例维度，如 (1, H, W) 或 (C, H, W)
-        # 常见情况：模型输出可能是 (C, H, W)，需转为 (H, W, C)
+        # Step 2: handle singleton/channel-first dimensions
         if img.ndim == 3:
             if img.shape[0] in (1, 3) and img.shape[1] > 3 and img.shape[2] > 3:
-                # 很可能是 CHW 格式（通道在前）
+                # Likely CHW format (channel first).
                 img = np.transpose(img, (1, 2, 0))
         elif img.ndim == 2:
-            pass  # 已是 HW
+            pass  # Already HW.
         else:
             raise ValueError(f"Unexpected image shape: {img.shape}")
         
-        # Step 3: 确保值域 [0, 1] 并转为 uint8
+        # Step 3: clamp to [0, 1] and convert to uint8
         img = np.clip(img, 0.0, 1.0)
         img_uint8 = (img * 255).astype(np.uint8)
         
-        # Step 4: 转为 PIL Image（处理通道数）
+        # Step 4: convert to PIL Image
         if img_uint8.ndim == 2:
             pil_img = Image.fromarray(img_uint8, mode='L')
         elif img_uint8.ndim == 3:
@@ -106,12 +117,12 @@ def save_sample_list_as_jpg(sample_list, save_dir, start_idx):
         else:
             raise ValueError(f"Invalid image dimensions after processing: {img_uint8.shape}")
         
-        # Step 5: 保存
+        # Step 5: save file
         filename = f"{start_idx + idx}.jpg"
         filepath = os.path.join(save_dir, filename)
         pil_img.save(filepath, quality=95)
     
-    print(f"✅ 已成功保存 {len(sample_list)} 张 JPG 图像到 '{save_dir}'")
+    print(f"Saved {len(sample_list)} JPG images to '{save_dir}'.")
 
 def _norm(s: str) -> str:
     return str(s).strip().lower().replace(" ", "").replace("_", "").replace("-", "")
@@ -125,8 +136,8 @@ def _load_attr_name_maps(attr_json_path: str = ATTR_NAMES_JSON):
       name_en_to_idx: dict
       name_zh_to_idx: dict
     Support formats:
-      1) {"attributes":[{"index":0,"name_en":"Male","name_zh":"男性"}, ...]}
-      2) [{"index":0,"name_en":"Male","name_zh":"男性"}, ...]
+      1) {"attributes":[{"index":0,"name_en":"Male","name_zh":"male_cn"}, ...]}
+      2) [{"index":0,"name_en":"Male","name_zh":"male_cn"}, ...]
       3) ["Male", "Young", ...]  (index = position)
       4) {"name_en_list":[...]} or {"attr_names":[...]} etc.
     """
@@ -226,7 +237,7 @@ def _load_threshold_list(threshold_json_path: str = THRESH_JSON):
 def get_index_from_attr_name(attr_name_1: str, attr_name_2: str,
                             attr_json_path: str = ATTR_NAMES_JSON):
     """
-    支持输入英文名或中文名（name_en/name_zh），大小写/下划线/空格都不敏感。
+    Accept English/Chinese names (name_en/name_zh), case/underscore/space insensitive.
     """
     name_en_to_idx, name_zh_to_idx = _load_attr_name_maps(attr_json_path)
 
@@ -247,7 +258,8 @@ def get_threshold_from_index(index_1: int, index_2: int,
                              threshold_json_path: str = THRESH_JSON,
                              default: float = 0.5):
     """
-    从 classifier_threshold.json 读出每个 index 的 threshold；越界则回退 default。
+    Read per-index thresholds from classifier_threshold.json.
+    Fallback to `default` when index is out of range.
     """
     thr = _load_threshold_list(threshold_json_path)
 
@@ -283,7 +295,7 @@ def create_parser():
 def sample(model1, model2, initial_samples, num_steps, learning_rate, sigma, device, retain_graph=False, return_samples_each_step=False):
 
         initial_samples = initial_samples.clone().detach().to(device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage.
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -311,10 +323,10 @@ def sample(model1, model2, initial_samples, num_steps, learning_rate, sigma, dev
             )
             grad = initial_samples.grad
             '''
-            # Langevin update (不要用 .data)
+            # Langevin update (do not use .data)
             initial_samples = initial_samples - learning_rate * grad + sigma * noise
-            initial_samples = initial_samples.clamp(0, 1).detach()  # detach 旧图
-            initial_samples.requires_grad_(True)  # 重新开启 grad
+            initial_samples = initial_samples.clamp(0, 1).detach()  # detach old graph
+            initial_samples.requires_grad_(True)  # re-enable grad
 
             if return_samples_each_step:
                 sample_list.append(initial_samples.detach().cpu())
@@ -353,7 +365,7 @@ def main(cmd_args):
         kl_loss=False,
         buffer_size=10000,
         replace_prob=0.05,
-        buffer_transform=False,  # 注意：原代码中此参数未设 default，但 action='store_true' 默认为 False
+        buffer_transform=False,  # In train scripts this is action='store_true' (default False).
         sgld_steps=60,
         sgld_lr=100.0,
         sgld_sigma=0.001,

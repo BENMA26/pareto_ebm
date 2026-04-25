@@ -97,7 +97,7 @@ def upgrad_manual_for_x(target_list,
         alpha = torch.full((m,), 1.0 / m, device=device, dtype=G.dtype)
     else:
         assert pref_vector.shape == (m,)
-        # 只要求“正权重”，这里归一化到和为 1，数值更稳
+        # Require only non-negative weights; normalize to sum to 1 for stability.
         alpha = (pref_vector.to(device=device, dtype=G.dtype)).clamp_min(0)
         alpha = alpha / alpha.sum().clamp_min(1e-12)
 
@@ -353,20 +353,20 @@ def deq_x(x):
 
 def ema_model_update(model, model_ema, mu=0.9999):
     """
-    更新EMA模型参数
+    Update EMA model parameters.
     Args:
-        model: 主模型
-        model_ema: EMA模型
-        mu: EMA衰减率，默认0.999
+        model: main model
+        model_ema: EMA model
+        mu: EMA decay rate, default 0.999.
     """
     assert 0 <= mu <= 1
-    if mu != 1:  # 如果mu是1，EMA参数保持不变
+    if mu != 1:  # If mu is 1, EMA parameters stay unchanged.
         for param, param_ema in zip(model.parameters(), model_ema.parameters()):
             param_ema.data[:] = mu * param_ema.data + (1 - mu) * param.data
 
 def ema_params_check(model, model_ema):
     """
-    检查EMA模型和主模型参数是否相同
+    Check whether EMA model and main model parameters are identical.
     """
     for param, param_ema in zip(model.parameters(), model_ema.parameters()):
         if not torch.eq(param_ema.data, param.data).all():
@@ -826,20 +826,20 @@ class single_head_classifier_lightning_module(pl.LightningModule):
         conditional_index = self.args.conditional_index
         pos_weight = torch.tensor(self.args.posweight, device=self.device)
 
-        # 前向传播
+        # Forward pass
         logits = self.model(batch_x)
         
-        # 提取特定索引的标签（二分类标签）
+        # Extract labels at the specified index (binary label).
         labels = batch_y[:, conditional_index].float()
         
-        # 计算二分类交叉熵损失
+        # Compute binary cross-entropy loss.
         loss_fn = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
         loss = loss_fn(logits.squeeze(), labels)
         
-        # 记录训练指标
+        # Log training metrics.
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
         
-        # 计算并记录准确率
+        # Compute and log accuracy.
         predictions = (torch.sigmoid(logits) > 0.5).float().squeeze()
         accuracy = (predictions == labels).float().mean()
         self.log('train_acc', accuracy, on_step=True, on_epoch=True, prog_bar=True)
@@ -1279,7 +1279,7 @@ class ebm_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -1296,10 +1296,10 @@ class ebm_lightning_module(pl.LightningModule):
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=True)[0]
             else:
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=False)[0]
-            # Langevin update (不要用 .data)
+            # Langevin update (do not use .data)
             initial_samples = initial_samples - learning_rate * grad + sigma * noise
-            initial_samples = initial_samples.clamp(0, 1).detach()  # detach 旧图
-            initial_samples.requires_grad_(True)  # 重新开启 grad
+            initial_samples = initial_samples.clamp(0, 1).detach()  # detach old graph
+            initial_samples.requires_grad_(True)  # re-enable grad
 
             if return_samples_each_step:
                 sample_list.append(initial_samples.detach().cpu())
@@ -1318,7 +1318,7 @@ class ebm_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -1333,10 +1333,10 @@ class ebm_lightning_module(pl.LightningModule):
             # compute grad w.r.t. samples
             grad = torch.autograd.grad(energy, initial_samples, create_graph=retain_graph)[0]
 
-            # Langevin update (不要用 .data)
+            # Langevin update (do not use .data)
             initial_samples = initial_samples - learning_rate * grad + sigma * noise
-            initial_samples = initial_samples.clamp(0, 1).detach()  # detach 旧图
-            initial_samples.requires_grad_(True)  # 重新开启 grad
+            initial_samples = initial_samples.clamp(0, 1).detach()  # detach old graph
+            initial_samples.requires_grad_(True)  # re-enable grad
 
             if return_samples_each_step:
                 sample_list.append(initial_samples.detach().cpu())
@@ -1366,7 +1366,7 @@ class ebm_lightning_module(pl.LightningModule):
         ])
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -1410,14 +1410,14 @@ class ebm_lightning_module(pl.LightningModule):
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=True)[0]
             else:
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=False)[0]
-            # Langevin update (不要用 .data)
+            # Langevin update (do not use .data)
             move = learning_rate * grad
             move = torch.clamp(move, min=-0.03, max=0.03)
 
             initial_samples = initial_samples - move + sigma * noise
             #initial_samples = initial_samples - learning_rate * grad + sigma * noise
-            initial_samples = initial_samples.clamp(0, 1).detach()  # detach 旧图
-            initial_samples.requires_grad_(True)  # 重新开启 grad
+            initial_samples = initial_samples.clamp(0, 1).detach()  # detach old graph
+            initial_samples.requires_grad_(True)  # re-enable grad
 
             if return_samples_each_step:
                 sample_list.append(initial_samples.detach().cpu())
@@ -1631,7 +1631,7 @@ class jem_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -1650,10 +1650,10 @@ class jem_lightning_module(pl.LightningModule):
             else:
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=False)[0]
 
-            # Langevin update (不要用 .data)
+            # Langevin update (do not use .data)
             initial_samples = initial_samples - learning_rate * grad + sigma * noise
-            initial_samples = initial_samples.clamp(0, 1).detach()  # detach 旧图
-            initial_samples.requires_grad_(True)  # 重新开启 grad
+            initial_samples = initial_samples.clamp(0, 1).detach()  # detach old graph
+            initial_samples.requires_grad_(True)  # re-enable grad
 
             if return_samples_each_step:
                 sample_list.append(initial_samples.detach().cpu())
@@ -1683,7 +1683,7 @@ class jem_lightning_module(pl.LightningModule):
         ])
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -1730,15 +1730,15 @@ class jem_lightning_module(pl.LightningModule):
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=True)[0]
             else:
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=False)[0]
-            # Langevin update (不要用 .data)
+            # Langevin update (do not use .data)
 
             move = learning_rate * grad
             move = torch.clamp(move, min=-0.03, max=0.03)
 
             initial_samples = initial_samples - move + sigma * noise
             #initial_samples = initial_samples - learning_rate * grad + sigma * noise
-            initial_samples = initial_samples.clamp(0, 1).detach()  # detach 旧图
-            initial_samples.requires_grad_(True)  # 重新开启 grad
+            initial_samples = initial_samples.clamp(0, 1).detach()  # detach old graph
+            initial_samples.requires_grad_(True)  # re-enable grad
 
             if return_samples_each_step:
                 sample_list.append(initial_samples.detach().cpu())
@@ -1890,7 +1890,7 @@ class jem_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -1918,13 +1918,13 @@ class jem_lightning_module(pl.LightningModule):
             else:
                 t = 0.0
 
-            # 1、2 从 1 线性减到 0.1： w = 1 - 0.9 * t
+            # 1 and 2 decay linearly from 1 to 0.1: w = 1 - 0.9 * t
             w_cond = 1.0 - 0.9 * t         # step=0 -> 1.0, step=last -> 0.1
 
-            # 3 从 0.1 线性增到 1： w = 0.1 + 0.9 * t
+            # 3 increases linearly from 0.1 to 1: w = 0.1 + 0.9 * t
             w_gen = 0.1 + 0.9 * t          # step=0 -> 0.1, step=last -> 1.0
 
-            # pref_vector 大小 = len(target_list)
+            # pref_vector size = len(target_list)
             pref_vector = torch.ones(len(target_list), device=initial_samples.device)
 
             pref_vector[0] = w_cond  
@@ -1968,7 +1968,7 @@ class jem_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -1997,13 +1997,13 @@ class jem_lightning_module(pl.LightningModule):
             else:
                 t = 0.0
 
-            # 1、2 从 1 线性减到 0.1： w = 1 - 0.9 * t
+            # 1 and 2 decay linearly from 1 to 0.1: w = 1 - 0.9 * t
             w_cond = 1.0 - 0.9 * t         # step=0 -> 1.0, step=last -> 0.1
 
-            # 3 从 0.1 线性增到 1： w = 0.1 + 0.9 * t
+            # 3 increases linearly from 0.1 to 1: w = 0.1 + 0.9 * t
             w_gen = 0.1 + 0.9 * t          # step=0 -> 0.1, step=last -> 1.0
 
-            # pref_vector 大小 = len(target_list)
+            # pref_vector size = len(target_list)
             pref_vector = torch.ones(len(target_list), device=initial_samples.device)
 
             pref_vector[0] = w_cond   
@@ -2046,7 +2046,7 @@ class jem_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -2064,10 +2064,10 @@ class jem_lightning_module(pl.LightningModule):
             else:
                 t = 0.0
 
-            # 1、2 从 1 线性减到 0.1： w = 1 - 0.9 * t
+            # 1 and 2 decay linearly from 1 to 0.1: w = 1 - 0.9 * t
             w_cond = 1.0 - 0.9 * t         # step=0 -> 1.0, step=last -> 0.1
 
-            # 3 从 0.1 线性增到 1： w = 0.1 + 0.9 * t
+            # 3 increases linearly from 0.1 to 1: w = 0.1 + 0.9 * t
             w_gen = 0.1 + 0.9 * t          # step=0 -> 0.1, step=last -> 1.0
 
             # E(Y|X)
@@ -2334,7 +2334,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
         ])
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -2381,15 +2381,15 @@ class pareto_jem_lightning_module(pl.LightningModule):
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=True)[0]
             else:
                 grad = torch.autograd.grad(energy, initial_samples, create_graph=False)[0]
-            # Langevin update (不要用 .data)
+            # Langevin update (do not use .data)
 
             move = learning_rate * grad
             move = torch.clamp(move, min=-0.03, max=0.03)
 
             initial_samples = initial_samples - move + sigma * noise
             #initial_samples = initial_samples - learning_rate * grad + sigma * noise
-            initial_samples = initial_samples.clamp(0, 1).detach()  # detach 旧图
-            initial_samples.requires_grad_(True)  # 重新开启 grad
+            initial_samples = initial_samples.clamp(0, 1).detach()  # detach old graph
+            initial_samples.requires_grad_(True)  # re-enable grad
 
             if return_samples_each_step:
                 sample_list.append(initial_samples.detach().cpu())
@@ -2541,7 +2541,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -2616,7 +2616,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -2645,13 +2645,13 @@ class pareto_jem_lightning_module(pl.LightningModule):
             else:
                 t = 0.0
 
-            # 1、2 从 1 线性减到 0.1： w = 1 - 0.9 * t
+            # 1 and 2 decay linearly from 1 to 0.1: w = 1 - 0.9 * t
             w_cond = 1.0 - 0.9 * t         # step=0 -> 1.0, step=last -> 0.1
 
-            # 3 从 0.1 线性增到 1： w = 0.1 + 0.9 * t
+            # 3 increases linearly from 0.1 to 1: w = 0.1 + 0.9 * t
             w_gen = 0.1 + 0.9 * t          # step=0 -> 0.1, step=last -> 1.0
 
-            # pref_vector 大小 = len(target_list)
+            # pref_vector size = len(target_list)
             pref_vector = torch.ones(len(target_list), device=initial_samples.device)
 
             pref_vector[0] = w_cond   
@@ -2694,7 +2694,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             model = self.model
 
         initial_samples = initial_samples.clone().detach().to(self.device)
-        initial_samples.requires_grad_(True)   # 正确写法
+        initial_samples.requires_grad_(True)   # Correct usage
 
         if return_samples_each_step:
             sample_list = [initial_samples.detach().cpu()]
@@ -2712,10 +2712,10 @@ class pareto_jem_lightning_module(pl.LightningModule):
             else:
                 t = 0.0
 
-            # 1、2 从 1 线性减到 0.1： w = 1 - 0.9 * t
+            # 1 and 2 decay linearly from 1 to 0.1: w = 1 - 0.9 * t
             w_cond = 1.0 - 0.9 * t         # step=0 -> 1.0, step=last -> 0.1
             w_cond = 1
-            # 3 从 0.1 线性增到 1： w = 0.1 + 0.9 * t
+            # 3 increases linearly from 0.1 to 1: w = 0.1 + 0.9 * t
             w_gen = 0.1 + 0.9 * t          # step=0 -> 0.1, step=last -> 1.0
             w_gen = 1
             # E(Y|X)
@@ -2763,14 +2763,14 @@ class pareto_jem_lightning_module(pl.LightningModule):
             model = self.model
 
         # -------------------------
-        # Stage 1 config (你给的超参)
+        # Stage 1 config (user-provided hyperparameters)
         # -------------------------
         warmup_rounds = 20
         warmup_inner_steps = 60
 
         im_size = initial_samples.shape[-1]  # (N,3,H,W)
         color_transform = get_color_distortion()
-        # 注意：这里 transform 不含 ToTensor，假设它能处理 torch.Tensor
+        # Note: transform here excludes ToTensor; assumes it can handle torch.Tensor.
         transform = transforms.Compose([
             transforms.RandomResizedCrop(im_size, scale=(0.08, 1.0)),
             transforms.RandomHorizontalFlip(),
@@ -2787,7 +2787,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             sample_list = [initial_samples.detach().cpu()]
 
         # -------------------------
-        # one step update (保持你原内容不变)
+        # one step update (logic kept unchanged)
         # -------------------------
         def one_step_update(x, step, total_steps):
             # reset noise
@@ -2820,7 +2820,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             pref_vector[1] = w_cond
             pref_vector[2] = w_gen
 
-            # ---- 关键：清掉旧 grad，避免累积 ----
+            # ---- Key: clear old grad to avoid accumulation. ----
             if x.grad is not None:
                 x.grad.zero_()
 
@@ -2841,7 +2841,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             return x
 
         # -------------------------
-        # Stage 1: warmup (有 transform)
+        # Stage 1: warmup (with transform)
         # -------------------------
         total_warmup_steps = warmup_rounds * warmup_inner_steps
         global_step = 0
@@ -2854,12 +2854,12 @@ class pareto_jem_lightning_module(pl.LightningModule):
                 if return_samples_each_step:
                     sample_list.append(initial_samples.detach().cpu())
 
-            # 每一轮 warmup 结束：做一次 transform（仅 Stage 1）
-            # 采用 CPU tensor 做增强，避免 torchvision 版本对 GPU tensor 支持不一致
+            # After each warmup round, apply one transform (Stage 1 only).
+            # Use CPU tensors for augmentation to avoid torchvision GPU support mismatch.
             x_cpu = initial_samples.detach().cpu()  # (N,3,H,W) float in [0,1]
             ims = []
             for k in range(x_cpu.shape[0]):
-                ims.append(transform(x_cpu[k]))  # 期望输出仍是 torch.Tensor (3,H,W)
+                ims.append(transform(x_cpu[k]))  # Expected output remains torch.Tensor (3,H,W).
 
             initial_samples = torch.stack(ims, dim=0).to(self.device, non_blocking=True)
             initial_samples = initial_samples.clamp(0, 1).detach().squeeze()
@@ -2869,7 +2869,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
                 sample_list.append(initial_samples.detach().cpu())
 
         # -------------------------
-        # Stage 2: refine (无 transform)
+        # Stage 2: refine (no transform)
         # -------------------------
         for step in range(num_steps):
             initial_samples = one_step_update(initial_samples, step, num_steps)
@@ -2878,7 +2878,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
                 sample_list.append(initial_samples.detach().cpu())
 
         # -------------------------
-        # return (保持不变)
+        # return (unchanged)
         # -------------------------
         if return_samples_each_step:
             return sample_list
@@ -2906,11 +2906,11 @@ class pareto_jem_lightning_module(pl.LightningModule):
         # ---------------------------
         # Stage-1 transform (PIL pipeline, safe with ToTensor)
         # ---------------------------
-        im_size = initial_samples.shape[-1]  # 假设 (N,3,H,W)
+        im_size = initial_samples.shape[-1]  # assume (N,3,H,W)
         color_transform = get_color_distortion()
         transform = transforms.Compose([transforms.RandomResizedCrop(im_size, scale=(0.08, 1.0)), transforms.RandomHorizontalFlip(),color_transform])
 
-        # warmup 超参：固定 10x20（不改你函数签名）
+        # warmup hyperparameters: fixed 10x20 (function signature unchanged)
         warmup_rounds = 20
         warmup_inner_steps = 30
 
@@ -2940,10 +2940,10 @@ class pareto_jem_lightning_module(pl.LightningModule):
             if final:
                 target_list.append(torch.logsumexp(logits, dim=-1).sum(dim=-1).sum())
 
-            # pref_vector 大小 = len(target_list)
+            # pref_vector size = len(target_list)
             pref_vector = torch.ones(len(target_list), device=x.device)
 
-            # ---- 关键：清掉旧 grad，避免累积 ----
+            # ---- Key: clear old grad to avoid accumulation. ----
             if x.grad is not None:
                 x.grad.zero_()
 
@@ -3030,11 +3030,11 @@ class pareto_jem_lightning_module(pl.LightningModule):
         # ---------------------------
         # Stage-1 transform (PIL pipeline, safe with ToTensor)
         # ---------------------------
-        im_size = initial_samples.shape[-1]  # 假设 (N,3,H,W)
+        im_size = initial_samples.shape[-1]  # assume (N,3,H,W)
         color_transform = get_color_distortion()
         transform = transforms.Compose([transforms.RandomResizedCrop(im_size, scale=(0.08, 1.0)), transforms.RandomHorizontalFlip(),color_transform])
 
-        # warmup 超参：固定 10x20（不改你函数签名）
+        # warmup hyperparameters: fixed 10x20 (function signature unchanged)
         warmup_rounds = 20
         warmup_inner_steps = 60
 
@@ -3058,7 +3058,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
                 dis_weight = 1
             else:
                 #dis_weight = 1 - step / total_steps
-                dis_weight = 1 / (1 + np.log(1 + step))  # 对数衰减，初期变化慢，后期加速
+                dis_weight = 1 / (1 + np.log(1 + step))  # logarithmic decay: slower at first, faster later
             target_list = [
                 dis_weight * (conditional_logits[:, idx, 0].sum() - conditional_logits[:, idx, 1].sum() - torch.logsumexp(conditional_logits[:, idx, :], dim=-1).sum())
                 if conditional_label_list[idx]
@@ -3071,7 +3071,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             target_list.append(torch.logsumexp(logits, dim=-1).sum(dim=-1).sum())
 
             pref_vector = torch.ones(len(target_list)-1, device=x.device)
-            # ---- 关键：清掉旧 grad，避免累积 ----
+            # ---- Key: clear old grad to avoid accumulation. ----
             if x.grad is not None:
                 x.grad.zero_()
 
@@ -3157,7 +3157,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
         # ---------------------------
         # Stage-1 transform (PIL pipeline, safe with ToTensor)
         # ---------------------------
-        im_size = initial_samples.shape[-1]  # 假设是 (N,3,H,W) 且 H=W
+        im_size = initial_samples.shape[-1]  # assume (N,3,H,W) and H=W
         color_transform = transforms.Compose([
             transforms.RandomApply(
                 [transforms.ColorJitter(0.8, 0.8, 0.8, 0.4)],
@@ -3172,7 +3172,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             transforms.ToTensor(),  # PIL -> Tensor in [0,1]
         ])
 
-        # warmup 超参：按你之前的风格固定写死（不改函数签名）
+        # warmup hyperparameters: fixed constants following prior style (signature unchanged)
         warmup_rounds = 20
         warmup_inner_steps = 30
 
@@ -3186,7 +3186,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             sample_list = [initial_samples.detach().cpu()]
 
         # ---------------------------
-        # one Langevin step (内容保持与你原来一致)
+        # one Langevin step (logic kept as original)
         # ---------------------------
         def one_step_update(x, step, total_steps):
             noise = torch.randn_like(x)
@@ -3226,7 +3226,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
             return x
 
         # ---------------------------
-        # Stage 1: warm up (有 transform)
+        # Stage 1: warm up (with transform)
         # ---------------------------
         total_warmup_steps = warmup_rounds * warmup_inner_steps
         global_step = 0
@@ -3239,7 +3239,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
                 if return_samples_each_step:
                     sample_list.append(initial_samples.detach().cpu())
 
-            # 每一轮 warmup 结束：做一次 transform 增强（仅 Stage 1 有）
+            # After each warmup round, apply one transform augmentation (Stage 1 only).
             # Tensor(CUDA) -> uint8 numpy -> PIL -> transform -> Tensor(CPU) -> stack -> CUDA
             x_uint8 = (
                 initial_samples.detach()
@@ -3265,7 +3265,7 @@ class pareto_jem_lightning_module(pl.LightningModule):
                 sample_list.append(initial_samples.detach().cpu())
 
         # ---------------------------
-        # Stage 2: refine (无 transform) —— 完全就是你原来的 loop
+        # Stage 2: refine (no transform) - exactly the original loop
         # ---------------------------
         for step in range(num_steps * 2):
             # reset noise
@@ -3280,10 +3280,10 @@ class pareto_jem_lightning_module(pl.LightningModule):
             else:
                 t = 0.0
 
-            # 1、2 从 1 线性减到 0.1： w = 1 - 0.9 * t
+            # 1 and 2 decay linearly from 1 to 0.1: w = 1 - 0.9 * t
             w_cond = 1.0 - 0.9 * t         # step=0 -> 1.0, step=last -> 0.1
             w_cond = 1
-            # 3 从 0.1 线性增到 1： w = 0.1 + 0.9 * t
+            # 3 increases linearly from 0.1 to 1: w = 0.1 + 0.9 * t
             w_gen = 0.1 + 0.9 * t          # step=0 -> 0.1, step=last -> 1.0
             w_gen = 1
             # E(Y|X)
@@ -3441,7 +3441,7 @@ class gibbs_jem_lightning_module(pl.LightningModule):
         if model_for_gibbs is None:
             model_for_gibbs = self.model
 
-        # 建议采样阶段用 eval（避免 BN 统计被负样本污染；训练仍用 train）
+        # Use eval mode during sampling to avoid BN-stat pollution by negative samples; keep train mode for training.
         was_training = model_for_gibbs.training
         model_for_gibbs.eval()
 
@@ -3491,7 +3491,7 @@ class gibbs_jem_lightning_module(pl.LightningModule):
         else:
             model_for_gibbs = self.model
 
-        # 注意：Langevin 需要梯度，所以不能 no_grad
+        # Langevin requires gradients, so do not use no_grad.
         batch_x_neg, batch_y_neg = self.gibbs_sample_x_y(
             x_init=batch_x_init,
             model_for_gibbs=model_for_gibbs,
@@ -3502,11 +3502,11 @@ class gibbs_jem_lightning_module(pl.LightningModule):
             sigma=sigma,
         )
 
-        # 写回 replay buffer（只存 x，尽量不改你的 buffer 结构）
+        # Write back to replay buffer (store only x; keep buffer structure unchanged as much as possible).
         self.sampler.update_buffer(batch_x_neg.detach().to("cpu"))
 
-        # 3) CD：改成 joint energy 的对比（更贴近 Gibbs-JEM）
-        #     pos 用真实 (x,y)，neg 用 Gibbs 链末尾 (x~, y~)
+        # 3) CD: switch to joint-energy contrast (closer to Gibbs-JEM).
+        #     pos uses real (x,y), neg uses Gibbs-chain terminal (x~, y~).
         neg_logits = self.model(batch_x_neg.detach()).view(-1, 23, 2)
 
         pos_energy = self._energy_xy_from_logits(logits, batch_y).mean()
@@ -3514,7 +3514,7 @@ class gibbs_jem_lightning_module(pl.LightningModule):
 
         cd_loss = pos_energy - neg_energy
 
-        # 4) 你的 KL 正则块：尽量保持原样（仍然用 uncond energy 做 distance regularizer）
+        # 4) KL regularization block: keep behavior close to original (still using uncond energy for distance regularization).
         if self.args.kl_loss:
             batch_buffer = self.sampler.sample(100, train=True).to(batch_x.device)
             batch_buffer = deq_x(batch_buffer)

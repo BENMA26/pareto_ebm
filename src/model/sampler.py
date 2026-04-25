@@ -43,10 +43,10 @@ class ReplayBuffer:
         self.device = device if device is not None else torch.device("cpu")
         self.dtype = dtype if dtype is not None else torch.float32
         self.transform = enhance_buffer_data(img_shape[1])
-        # 预分配存储 + 指针与当前有效大小
+        # Pre-allocate storage and initialize write pointer/valid size.
         self.buffer = torch.empty((self.max_size, *self.img_shape), device=self.device, dtype=self.dtype)
-        self.ptr = 0          # 下次写入位置
-        self.size = 0         # 已写入的有效样本数 (<= max_size)
+        self.ptr = 0          # Next write position.
+        self.size = 0         # Number of valid samples currently stored (<= max_size).
 
     def __len__(self):
         return self.size
@@ -54,10 +54,10 @@ class ReplayBuffer:
     def sample(self, num_samples: int, train=False):
         num_samples = int(num_samples)
 
-        # 若当前有效数据不足以采样，先用随机噪声填充到至少 num_samples
+        # If valid data is insufficient, initialize with random noise first.
         if self.size < num_samples:
             need = min(self.max_size, num_samples - self.size)
-            # 写入随机数据
+            # Write random data.
             end = (self.ptr + need) % self.max_size
             if end > self.ptr:
                 self.buffer[self.ptr:end].uniform_(0, 1)
@@ -68,50 +68,50 @@ class ReplayBuffer:
             self.ptr = end
             self.size = min(self.max_size, self.size + need)
 
-        # 现在可以从 [0, self.size) 均匀采样
+        # Uniformly sample from [0, self.size).
         random_indexes = torch.randint(self.size, (num_samples,), device=self.device)
 
-        # 按 replace_prob 替换这批被采样到的 buffer 位置（就地随机化）
+        # Replace sampled positions in-place with probability `replace_prob`.
         chosen_mask = torch.zeros(num_samples, dtype=torch.bool, device=self.device)
         if self.replace_prob > 0:
             mask = torch.rand(num_samples, device=self.device) < self.replace_prob
             if mask.any():
                 chosen = random_indexes[mask]
                 chosen_mask[mask] = True
-                # 直接对选中的位置写入新噪声，避免构造临时大张量
+                # In-place noise refresh for selected positions.
                 self.buffer[chosen].uniform_(0, 1)
         
-        # 获取样本
+        # Gather sampled items.
         samples = self.buffer[random_indexes].clone()
         
-        # 只对不属于chosen的样本（即原始buffer样本）进行transform
+        # Apply transform only to non-refreshed samples.
         if self.transform is not None and train:
-            # 找到需要transform的样本索引（不属于chosen的样本）
+            # Keep indices that correspond to original buffer samples.
             transform_mask = ~chosen_mask
             
             transform_mask = [idx for idx,mask in enumerate(transform_mask) if mask]
             for mask in transform_mask:
                 samples[mask] = self.transform(samples[mask])
             #if transform_mask.any():
-                # 只对原始buffer样本进行transform
+                # Apply transform only to original buffer samples.
                 #samples[transform_mask] = self.transform(samples[transform_mask])
         
         return samples
 
     def update_buffer(self, samples: torch.Tensor):
         """
-        将 samples 写入缓冲区（覆盖最旧数据），O(写入量) 拷贝，无需 cat。
-        要求 samples 形状为 (N, *img_shape)，设备与 dtype 可与 buffer 不同，会自动搬运。
+        Write samples into the circular buffer (overwriting oldest entries).
+        Expected shape: (N, *img_shape). Device/dtype are auto-aligned.
         """
         if samples.ndim == len(self.img_shape):
-            # 允许传入单个样本
+            # Allow passing a single sample.
             samples = samples.unsqueeze(0)
         assert samples.shape[1:] == self.img_shape, "expected shape (*,{}), got {}".format(self.img_shape, samples.shape)
         samples = samples.to(device=self.device, dtype=self.dtype, copy=False)
 
         n = samples.shape[0]
         if n >= self.max_size:
-            # 只保留最后 max_size 个
+            # Keep only the latest max_size samples.
             self.buffer.copy_(samples[-self.max_size:])
             self.ptr = 0
             self.size = self.max_size

@@ -1,36 +1,42 @@
 import os
 import argparse
+from glob import glob
 import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset, Subset
+from PIL import Image
 import kornia
 
-DATASET_ROOT = "/work/home/maben/project/blue_whale_lab/projects/pareto_ebm/datasets"
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DATASET_ROOT = os.environ.get(
+    "PARETO_EBM_DATASET_ROOT",
+    os.path.join(REPO_ROOT, "datasets"),
+)
 
 class ImageFolderNoLabel(Dataset):
     def __init__(self, root_dir, transform=None):
         """
-        root_dir: 目录路径，里面都是 jpg/png 等图像
-        transform: torchvision.transforms，用于预处理图像
+        root_dir: directory path containing jpg/png images
+        transform: torchvision transform pipeline for preprocessing
         """
         self.root_dir = root_dir
-        # 收集所有 jpg/jpeg/png 文件
+        # Collect all jpg/jpeg/png files.
         exts = ("*.jpg", "*.jpeg", "*.png")
         self.image_paths = []
         for ext in exts:
             self.image_paths.extend(glob(os.path.join(root_dir, ext)))
-        self.image_paths.sort()  # 固定顺序，方便复现实验
+        self.image_paths.sort()  # Keep deterministic order for reproducibility.
 
         if len(self.image_paths) == 0:
             raise RuntimeError(f"No images found in {root_dir}")
 
-        # 如果没传 transform，就给一个默认的
+        # Use a default transform when none is provided.
         if transform is None:
-            self.transform = T.Compose([
-                T.Resize((64, 64)),     # 目标分辨率，根据你自己任务改
-                T.ToTensor(),           # [0,1], shape [C,H,W]
+            self.transform = transforms.Compose([
+                transforms.Resize((64, 64)),  # Target resolution.
+                transforms.ToTensor(),        # [0,1], shape [C,H,W]
             ])
         else:
             self.transform = transform
@@ -40,7 +46,7 @@ class ImageFolderNoLabel(Dataset):
 
     def __getitem__(self, idx):
         img_path = self.image_paths[idx]
-        # 打开图像并统一为 RGB（有些是 L、RGBA）
+        # Open image and convert to RGB (source may be L/RGBA).
         img = Image.open(img_path).convert("RGB")
         img = self.transform(img)
         return img
