@@ -1,4 +1,4 @@
-# PARETO-EBM (Simple README)
+# PARETO-EBM source code
 
 This repository contains training and sampling code for multi-attribute CelebA energy-based models, including:
 - Classifier
